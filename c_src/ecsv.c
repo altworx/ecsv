@@ -138,8 +138,10 @@ NIF(parse)
 
     return enif_make_tuple3(env,
             enif_make_atom(env, "ok"),
-            enif_make_ulong(env, parser->fields),
-            enif_make_ulong(env, parser->rows)
+            enif_make_tuple2(env,
+                enif_make_ulong(env, parser->fields),
+                enif_make_ulong(env, parser->rows)),
+            argv[1]
             );
 }
 
