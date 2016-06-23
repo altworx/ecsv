@@ -85,21 +85,33 @@ NIF(parse)
 {
     ErlNifBinary bin_raw;
     ecsv_parser_t *parser;
-    ErlNifUInt64 _offset;
     size_t offset;
-    ErlNifPid self;
 
-    enif_self(env, &self);
-    unless (argc == 3 &&
-            enif_inspect_binary(env, argv[0], &bin_raw) &&
-            enif_get_resource(env, argv[1], ecsv_parser_type, (void **)&parser) &&
-            parser->owner.pid == self.pid &&            // not nice
-            enif_get_uint64(env, argv[2], &_offset) &&
-            _offset <= bin_raw.size
-           ) {
-        return enif_make_badarg(env);
+    {
+        ErlNifUInt64 _offset;
+        unless (argc == 3 &&
+                enif_inspect_binary(env, argv[0], &bin_raw) &&
+                enif_get_resource(env, argv[1], ecsv_parser_type, (void **)&parser) &&
+                enif_get_uint64(env, argv[2], &_offset) &&
+                _offset <= bin_raw.size
+               ) {
+            return enif_make_badarg(env);
+        }
+        offset = _offset;
     }
-    offset = _offset;
+
+    {
+        ErlNifPid self_pid;
+        ERL_NIF_TERM self  = enif_make_pid(env, enif_self(env, &self_pid));
+        ERL_NIF_TERM owner = enif_make_pid(env, &parser->owner);
+        unless (enif_is_identical(self, owner)) {
+            return enif_raise_exception(env,
+                    enif_make_tuple2(env,
+                        enif_make_atom(env, "owner_mismatch"),
+                        owner)
+                    );
+        }
+    }
 
     while (offset < bin_raw.size) {
         size_t size = bin_raw.size - offset;
