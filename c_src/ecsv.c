@@ -26,7 +26,6 @@ void cb2 (int c, void *data)
     ((ecsv_parser_t *)data)->rows++;
 }
 
-
 NIF(parser_init)
 {
     unsigned int delimiter;
@@ -42,13 +41,14 @@ NIF(parser_init)
     };
 
     unless ((parser = enif_alloc_resource(ecsv_parser_type, sizeof(ecsv_parser_t)))) {
-        return enif_raise_exception(env, enif_make_atom(env, "out_of_memory"));
+        term = enif_raise_exception(env, enif_make_atom(env, "out_of_memory"));
+        goto alloc_error;
     };
-    bzero(parser, sizeof(ecsv_parser_t));
+    *parser = (ecsv_parser_t){0};
 
     if (csv_init(&parser->p, options)) {
-        enif_release_resource(parser);
-        return enif_raise_exception(env, enif_make_atom(env, "libcsv_init"));
+        term = enif_raise_exception(env, enif_make_atom(env, "libcsv_init"));
+        goto init_error;
     }
 
     csv_set_delim(&parser->p, delimiter);
@@ -59,7 +59,9 @@ NIF(parser_init)
     enif_self(env, &parser->owner);
 
     term = enif_make_resource(env, parser);
+init_error:
     enif_release_resource(parser);
+alloc_error:
     return term;
 }
 
