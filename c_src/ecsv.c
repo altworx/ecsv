@@ -1,7 +1,7 @@
 #include "ecsv_nif.h"
 #include <csv.h>
 
-//#define trace_debug
+#define trace_debug
 
 #ifdef trace_debug
 #define debug_printf(s, ...) do {enif_fprintf(stderr, s, __VA_ARGS__);} while(0)
@@ -91,6 +91,7 @@ void field_call_back (void *s, size_t len, void *data)
                 return;
             }
         }
+        debug_printf("Line binary %u at %p\n", line->bin.size, line->bin.data);
     }
 
     // check fields size
