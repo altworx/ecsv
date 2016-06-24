@@ -19,4 +19,9 @@ ealloc(const size_t size) { return enif_alloc(size); }
 static __inline__ void *
 erealloc(void *ptr, const size_t size) __attribute__ ((alloc_size (2)));
 static __inline__ void *
-erealloc(void *ptr, const size_t size) { return ptr ? enif_realloc(ptr, size) : ealloc(size); }
+erealloc(void *ptr, const size_t size) {
+//    enif_fprintf(stderr, "\tRealloc %u at %p\n", size, ptr);
+    void *newptr = enif_realloc(ptr, size);
+//    enif_fprintf(stderr, "\tAllocated at %p-%p\n", newptr, (char *)newptr+size);
+    return newptr;
+}
