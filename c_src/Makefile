@@ -54,21 +54,28 @@ OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
 COMPILE_C = $(c_verbose) $(CC) $(CFLAGS) $(CPPFLAGS) -c
 COMPILE_CPP = $(cpp_verbose) $(CXX) $(CXXFLAGS) $(CPPFLAGS) -c
 
+# pull in dependency info for *existing* .o files
+-include $(OBJECTS:.o=.d)
+
 $(C_SRC_OUTPUT): $(OBJECTS)
 	@mkdir -p $(BASEDIR)/priv/
 	$(link_verbose) $(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(C_SRC_OUTPUT)
 
 %.o: %.c
 	$(COMPILE_C) $(OUTPUT_OPTION) $<
+	$(CC) -MM $(CFLAGS) $< > $*.d
 
 %.o: %.cc
 	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
+	$(CXX) -MM $(CFLAGS) $< > $*.d
 
 %.o: %.C
 	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
+	$(CXX) -MM $(CFLAGS) $< > $*.d
 
 %.o: %.cpp
 	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
+	$(CXX) -MM $(CFLAGS) $< > $*.d
 
 clean:
 	@rm -f $(C_SRC_OUTPUT) $(OBJECTS)
