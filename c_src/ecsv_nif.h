@@ -1,6 +1,7 @@
 // Copyright 2016 Altworx. All rights reserved.
 #pragma once
 
+#include <assert.h>
 #include <erl_nif.h>
 #include "ecsv_common.h"
 
@@ -12,16 +13,16 @@
 #define PAR(test) unless(test) return enif_make_badarg(env)
 
 static __inline__ void *
-ealloc(const size_t size) __attribute__ ((malloc, alloc_size (1)));
+        ealloc(const size_t size) __attribute__ ((malloc, alloc_size (1)));
+
 static __inline__ void *
 ealloc(const size_t size) { return enif_alloc(size); }
 
 static __inline__ void *
-erealloc(void *ptr, const size_t size) __attribute__ ((alloc_size (2)));
+        erealloc(void *ptr, const size_t size) __attribute__ ((alloc_size (2)));
+
 static __inline__ void *
 erealloc(void *ptr, const size_t size) {
-    enif_fprintf(stderr, "\tRealloc %u at %p\n", size, ptr);
-    void *newptr = enif_realloc(ptr, size);
-    enif_fprintf(stderr, "\tAllocated at %p-%p\n", newptr, (char *)newptr+size);
-    return newptr;
+    assert(size != 0);
+    return enif_realloc(ptr, size);
 }
