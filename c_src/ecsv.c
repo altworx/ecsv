@@ -89,7 +89,7 @@ void field_call_back(void *s, size_t len, void *data) {
         debug_printf("Realocate line->fields\n", parser->len, parser->pos);
         void *old_ptr = line->fields;
         line->len = likely(line->len) ? line->len * 2 : START_FIELDS;
-        line->fields = erealloc(line->fields, line->len * sizeof(field_t));
+        line->fields = erealloc(line->fields, line->len * sizeof(line->fields[0]));
         if (!(line->fields)) {
             enif_free(old_ptr);
             line->len = 0; // just for sure
@@ -119,7 +119,7 @@ void line_call_back(UNUSED(int c), void *data) {
         debug_printf("Realocate parser->lines\n", parser->len, parser->pos);
         void *old_ptr = parser->lines;
         parser->len = likely(parser->len) ? parser->len * 2 : START_LINES;
-        parser->lines = erealloc(parser->lines, parser->len * sizeof(ERL_NIF_TERM));
+        parser->lines = erealloc(parser->lines, parser->len * sizeof(parser->lines[0]));
         if (!(parser->lines)) {
             enif_free(old_ptr);
             parser->len = 0; // just for sure
@@ -134,7 +134,7 @@ void line_call_back(UNUSED(int c), void *data) {
     if (line->pos > line_tmp->len) {
         void *old_ptr = line_tmp->terms;
         line_tmp->len = line->pos * 2;
-        line_tmp->terms = erealloc(line_tmp->terms, line_tmp->len * sizeof(ERL_NIF_TERM));
+        line_tmp->terms = erealloc(line_tmp->terms, line_tmp->len * sizeof(line_tmp->terms[0]));
         if (!(line_tmp->terms)) {
             enif_free(old_ptr);
             line_tmp->len = 0; // just for sure
