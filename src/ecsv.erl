@@ -1,7 +1,18 @@
 -module(ecsv).
 
 %% API exports
--export([parser_init/2, parse/1, parse/2]).
+-export([
+         parser_init/2
+         , parse/1
+         , parse/2
+         , parse_stream/4
+         , parse_stream/5
+         , file_reader/0
+         , block_chopper/1
+         , default_block_size/0
+        ]).
+
+-export([parse_nif/3]).
 
 -define(APPNAME, ?MODULE).
 -define(LIBNAME, ?MODULE).
@@ -14,27 +25,74 @@
 %% API functions
 %%====================================================================
 
+default_block_size() ->
+    ?BLOCK_SIZE.
+
 parse(Bin) ->
-    parse(Bin, parser_init($,, $")).
+    {ok, Acc, S} = parse_raw(Bin, default_state(), []),
+    {ok, Ls, _} = parse_raw(eof, S, Acc),
+    lists:reverse(Ls).
 
 parse(Bin, State) ->
-    parse(Bin, State, []).
+    parse_raw(Bin, State, []).
+
+parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState) ->
+    parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState,
+                 default_state()).
+
+parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState, State) ->
+    parse_stream_(ReaderFun, ReaderState, CallbackFun, CallbackState,
+                 State).
 
 parser_init(Delim, Quote) ->
     erlang:nif_error(not_loaded, [Delim, Quote]).
+
+file_reader() ->
+    fun(FS) ->
+            case file:read(FS, ?BLOCK_SIZE) of
+                eof -> {eof, FS};
+                {ok, Bin} -> {Bin, FS}
+            end
+    end.
+
+block_chopper(BS) ->
+    fun(<<>>) ->
+            {eof, <<>>};
+       (<<Bin:BS/bytes, Rest/bytes>>) ->
+            {Bin, Rest};
+       (Bin) ->
+            {Bin, <<>>}
+    end.
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
-parse(<<>>, State, Acc) -> {ok, Acc, State};
-parse(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
-    {ok, Acc2, S2} = parse_(Bin, State, Acc),
-    parse(Rest, S2, Acc2);
-parse(Bin, State, Acc) ->
-    parse_(Bin, State, Acc).
+default_state() ->
+    parser_init($,, $").
 
-parse_(Bin, _, _) ->
+parse_stream_(RF, RS, CF, CS, State) ->
+    case RF(RS) of
+        {eof, RS2} ->
+            {ok, Ls, S2} = parse_raw(eof, State, []),
+            CS2 = CF({eof, Ls}, CS),
+            {RS2, CS2, S2};
+        {Bin, RS2} ->
+            {ok, Ls, S2} = parse_raw(Bin, State, []),
+            CS2 = CF({lines, Ls}, CS),
+            parse_stream_(RF, RS2, CF, CS2, S2)
+    end.
+
+parse_raw(eof, State, Acc) -> parse_nif(eof, State, Acc);
+parse_raw(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
+    {ok, Acc2, S2} = parse_nif(Bin, State, Acc),
+    parse_raw(Rest, S2, Acc2);
+parse_raw(<<>>, State, Acc) ->
+    {ok, Acc, State};
+parse_raw(Bin, State, Acc) ->
+    parse_nif(Bin, State, Acc).
+
+parse_nif(Bin, _, _) ->
     erlang:nif_error(not_loaded, [Bin]).
 
 init() ->

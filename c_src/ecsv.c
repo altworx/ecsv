@@ -229,7 +229,7 @@ NIF(parse)
 static ErlNifFunc nif_funcs[] =
 {
     {"parser_init", 2, parser_init},
-    {"parse_",       3, parse}
+    {"parse_nif",   3, parse}
 };
 #pragma GCC diagnostic pop
 
