@@ -202,12 +202,12 @@ alloc_error:
 static void
 release_ecsv_parser(UNUSED(ErlNifEnv * env), void *obj) {
     enif_fprintf(stderr, "Releasing parser resource\n");
-//    ecsv_parser_t *parser = (ecsv_parser_t *) obj;
-//    if (parser->current_line.bin.size) enif_release_binary(parser->current_line.bin);
-//    if (parser->current_line.fields) enif_free(parser->current_line.fields);
-//    if (parser->line_tmp.terms) enif_free(parser->line_tmp.terms);
-//    if (parser->lines) enif_free(parser->lines);
-//    csv_free(&parser->p);
+    ecsv_parser_t *parser = (ecsv_parser_t *) obj;
+    if (parser->current_line.bin.size) enif_release_binary(&parser->current_line.bin);
+    if (parser->current_line.fields) enif_free(parser->current_line.fields);
+    if (parser->line_tmp.terms) enif_free(parser->line_tmp.terms);
+    if (parser->lines) enif_free(parser->lines);
+    csv_free(&parser->p);
     enif_fprintf(stderr, "Released parser resource\n");
 }
 
