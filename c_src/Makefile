@@ -54,6 +54,8 @@ OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
 COMPILE_C = $(c_verbose) $(CC) $(CFLAGS) $(CPPFLAGS) -c
 COMPILE_CPP = $(cpp_verbose) $(CXX) $(CXXFLAGS) $(CPPFLAGS) -c
 
+all: $(C_SRC_OUTPUT)
+
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
 
@@ -78,4 +80,4 @@ $(C_SRC_OUTPUT): $(OBJECTS)
 	$(CXX) -MM $(CFLAGS) $< > $*.d
 
 clean:
-	@rm -f $(C_SRC_OUTPUT) $(OBJECTS)
+	@rm -f $(C_SRC_OUTPUT) $(OBJECTS) $(OBJECTS:.o=.d)
