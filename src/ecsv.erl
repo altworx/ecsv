@@ -16,7 +16,7 @@ parse(Bin) ->
     parse(Bin, parser_init($,, $")).
 
 parse(Bin, State) ->
-    parse(Bin, State, 0).
+    parse(Bin, State, [], 0).
 
 parser_init(Delim, Quote) ->
     erlang:nif_error(not_loaded, [Delim, Quote]).
@@ -25,7 +25,7 @@ parser_init(Delim, Quote) ->
 %% Internal functions
 %%====================================================================
 
-parse(Bin, _, _) ->
+parse(Bin, _, _, _) ->
     erlang:nif_error(not_loaded, [Bin]).
 
 init() ->
