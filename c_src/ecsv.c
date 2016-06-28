@@ -1,13 +1,6 @@
+#define trace_debug
 #include "ecsv_nif.h"
 #include <csv.h>
-
-//#define trace_debug
-
-#ifdef trace_debug
-#define debug_printf(s, ...) do {enif_fprintf(stderr, s, __VA_ARGS__);} while(0)
-#else
-#define debug_printf(s, ...) while(0) {enif_fprintf(stderr, s, __VA_ARGS__);}
-#endif
 
 enum {
     CHUNK_SIZE = 10 * 1024,
@@ -71,22 +64,21 @@ void field_call_back(void *s, size_t len, void *data) {
     line_t *line = &parser->current_line;
     size_t offset = new_offset(line);
 
-    
     // check line->bin.size and allocate
-    debug_printf("line->bin.size %u, offset: %u, len: %u\n", line->bin.size, offset, len);
+    debug_printf("line->bin.size %zu, offset: %zu, len: %zu", line->bin.size, offset, len);
     if (line->bin.size < offset + len) {
-        debug_printf("\tReallocating line->bin\n", 0);
+        debug_printf("Reallocate line->bin");
         if (!enif_realloc_binary(&line->bin, (offset + len) * 2)) {
             parser->err = 1;
             return;
         }
-        debug_printf("Line binary %u at %p: %s\n", line->bin.size, line->bin.data, line->bin.data);
+        debug_printf("Line binary %zu at %p: %-*s", line->bin.size, line->bin.data, (int)line->bin.size, line->bin.data);
     }
 
     // check fields size
-    debug_printf("line->len: %u, line->pos: %u\n", line->len, line->pos);
+    debug_printf("line->len: %zu, line->pos: %zu", line->len, line->pos);
     if (line->pos >= line->len) {
-        debug_printf("Realocate line->fields\n", parser->len, parser->pos);
+        debug_printf("Reallocate line->fields");
         void *old_ptr = line->fields;
         line->len = likely(line->len) ? line->len * 2 : START_FIELDS;
         line->fields = erealloc(line->fields, line->len * sizeof(line->fields[0]));
@@ -103,8 +95,8 @@ void field_call_back(void *s, size_t len, void *data) {
     field->len = len;
     memcpy(line->bin.data + offset, s, len);
     line->pos++;
-    debug_printf("Write field %s at start(%p): %p-%p  ===> %s  (len: %u, offset: %u)\n", s, line->bin.data,
-                 line->bin.data + offset, line->bin.data + offset + len, line->bin.data, len, offset);
+    debug_printf("Write field %s at start(%p): %p-%p  ===> %*s  (len: %zu, offset: %zu)", (char *)s, line->bin.data,
+                 line->bin.data + offset, line->bin.data + offset + len, (int)(offset+len), line->bin.data, len, offset);
 }
 
 
@@ -114,9 +106,9 @@ void line_call_back(UNUSED(int c), void *data) {
     line_t *line = &parser->current_line;
 
     // check lines size
-    debug_printf("parser->len %u, parser->pos: %u\n", parser->len, parser->pos);
+    debug_printf("parser->len %zu, parser->pos: %zu", parser->len, parser->pos);
     if (parser->pos >= parser->len) {
-        debug_printf("Realocate parser->lines\n", parser->len, parser->pos);
+        debug_printf("Reallocate parser->lines");
         void *old_ptr = parser->lines;
         parser->len = likely(parser->len) ? parser->len * 2 : START_LINES;
         parser->lines = erealloc(parser->lines, parser->len * sizeof(parser->lines[0]));
@@ -130,8 +122,9 @@ void line_call_back(UNUSED(int c), void *data) {
 
     // check size for line term
     line_tmp_t *line_tmp = &parser->line_tmp;
-    debug_printf("line->pos %u, line_tmp->len: %u\n", line->pos, line_tmp->len);
+    debug_printf("line->pos %zu, line_tmp->len: %zu", line->pos, line_tmp->len);
     if (line->pos > line_tmp->len) {
+        debug_printf("Reallocate line_tmp->terms");
         void *old_ptr = line_tmp->terms;
         line_tmp->len = line->pos * 2;
         line_tmp->terms = erealloc(line_tmp->terms, line_tmp->len * sizeof(line_tmp->terms[0]));
@@ -151,8 +144,11 @@ void line_call_back(UNUSED(int c), void *data) {
         ERL_NIF_TERM line_term = enif_make_binary(env, &line->bin);
         for (size_t i = 0; i < line->pos; i++) {
             field_t *field = &line->fields[i];
-            debug_printf("Writing tmp term %p: %s (%u - %u)\n", line_tmp->terms[i], line->bin.data, field->offset,
-                         field->len);
+            debug_printf("Writing tmp term %p: %-*s, (%-*s %zu - %zu)",
+                    &line_tmp->terms[i], (int)field->len,
+                    line->bin.data + field->offset,
+                    (int)line->bin.size, line->bin.data,
+                    field->offset, field->len);
             line_tmp->terms[i] = enif_make_sub_binary(env, line_term, field->offset, field->len);
         }
         parser->lines[parser->pos] = enif_make_tuple_from_array(env, line_tmp->terms, line->pos);

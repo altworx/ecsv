@@ -1,7 +1,6 @@
 // Copyright 2016 Altworx. All rights reserved.
 #pragma once
 
-#include <assert.h>
 #include <erl_nif.h>
 #include "ecsv_common.h"
 
@@ -21,8 +20,16 @@ ealloc(const size_t size) { return enif_alloc(size); }
 static __inline__ void *
         erealloc(void *ptr, const size_t size) __attribute__ ((alloc_size (2)));
 
+#ifdef trace_debug
+#   define debug_printf(s, ...) do {fprintf(stderr, s "\r\n", ##__VA_ARGS__);} while(0)
+#else
+#   define debug_printf(s, ...) while(0) {fprintf(stderr, s "\r\n", ##__VA_ARGS__);}
+#endif
+
 static __inline__ void *
 erealloc(void *ptr, const size_t size) {
-    assert(size != 0);
-    return enif_realloc(ptr, size);
+    debug_printf("\tRealloc %zu at %p", size, ptr);
+    void *newptr = enif_realloc(ptr, size);
+    debug_printf("\tAllocated at %p-%p", newptr, (char *)newptr+size);
+    return newptr;
 }
