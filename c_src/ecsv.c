@@ -198,6 +198,7 @@ NIF(parse)
 
     if (eof) {
         csv_fini(&parser->p, field_call_back, line_call_back, parser);
+        csv_free(&parser->p);
     } else {
         csv_parse( &parser->p, bin_raw.data, bin_raw.size, field_call_back, line_call_back, parser);
     }
