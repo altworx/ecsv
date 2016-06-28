@@ -6,6 +6,8 @@
 -define(APPNAME, ?MODULE).
 -define(LIBNAME, ?MODULE).
 
+-define(BLOCK_SIZE, 1024*20). %% 20kB
+
 -on_load(init/0).
 
 %%====================================================================
@@ -16,7 +18,7 @@ parse(Bin) ->
     parse(Bin, parser_init($,, $")).
 
 parse(Bin, State) ->
-    parse(Bin, State, [], 0).
+    parse(Bin, State, []).
 
 parser_init(Delim, Quote) ->
     erlang:nif_error(not_loaded, [Delim, Quote]).
@@ -25,7 +27,14 @@ parser_init(Delim, Quote) ->
 %% Internal functions
 %%====================================================================
 
-parse(Bin, _, _, _) ->
+parse(<<>>, State, Acc) -> {ok, Acc, State};
+parse(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
+    {ok, Acc2, S2} = parse_(Bin, State, Acc),
+    parse(Rest, S2, Acc2);
+parse(Bin, State, Acc) ->
+    parse_(Bin, State, Acc).
+
+parse_(Bin, _, _) ->
     erlang:nif_error(not_loaded, [Bin]).
 
 init() ->

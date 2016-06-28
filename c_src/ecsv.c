@@ -3,10 +3,7 @@
 #include <csv.h>
 
 enum {
-    CHUNK_SIZE = 20 * 1024,
     START_FIELDS = 8,
-    START_LINES = 8,
-    START_LINE_SIZE = 64,
 };
 
 typedef struct {
@@ -171,23 +168,16 @@ NIF(parse)
 {
     ErlNifBinary bin_raw;
     ecsv_parser_t *parser;
-    size_t offset;
     int eof = 0;
 
-    {
-        ErlNifUInt64 _offset;
-        unless (argc == 4 &&
-                (
-                 (eof = enif_is_identical(argv[0], atoms.eof)) ||
-                 enif_inspect_binary(env, argv[0], &bin_raw)
-                ) &&
-                enif_get_resource(env, argv[1], ecsv_parser_type, (void **)&parser) &&
-                enif_get_uint64(env, argv[3], &_offset) &&
-                _offset <= bin_raw.size
-               ) {
-            return enif_make_badarg(env);
-        }
-        offset = _offset;
+    unless (argc == 3 &&
+            (
+             (eof = enif_is_identical(argv[0], atoms.eof)) ||
+             enif_inspect_binary(env, argv[0], &bin_raw)
+            ) &&
+            enif_get_resource(env, argv[1], ecsv_parser_type, (void **)&parser)
+           ) {
+        return enif_make_badarg(env);
     }
 
     {
@@ -201,74 +191,36 @@ NIF(parse)
         }
     }
 
+    ErlNifTime start = enif_monotonic_time(ERL_NIF_USEC);
+
     enif_free_env(copy_current_line(env, parser));
     parser->lines = argv[2];
 
     if (eof) {
-        ErlNifTime start = enif_monotonic_time(ERL_NIF_USEC);
         csv_fini(&parser->p, field_call_back, line_call_back, parser);
-        if (csv_error(&parser->p)) {
-            return enif_make_tuple3(env,
-                    atoms.error,
-                    return_so_far(env, parser),
-                    enif_make_tuple2(env,
-                        atoms.parse_error,
-                        enif_make_string(env, csv_strerror(csv_error(&parser->p)),
-                            ERL_NIF_LATIN1)
-                        )
-                    );
-        }
+    } else {
+        csv_parse( &parser->p, bin_raw.data, bin_raw.size, field_call_back, line_call_back, parser);
+    }
+    ERL_NIF_TERM result = return_so_far(env, parser);
+
+    {
         ErlNifTime diff = enif_monotonic_time(ERL_NIF_USEC) - start;
         int percent = diff / 10;
         if (percent > 100) percent = 100;
         enif_consume_timeslice(env, percent);
     }
-    else {
-        while (offset < bin_raw.size) {
-            size_t size = bin_raw.size - offset;
-            ErlNifTime start = enif_monotonic_time(ERL_NIF_USEC);
-            if (size > CHUNK_SIZE) size = CHUNK_SIZE;
-            if (csv_parse(
-                        &parser->p,
-                        bin_raw.data + offset,
-                        size,
-                        field_call_back,
-                        line_call_back,
-                        parser
-                        ) != size) {
-                return enif_make_tuple3(env,
-                        atoms.error,
-                        return_so_far(env, parser),
-                        enif_make_tuple2(
-                            env,
-                            atoms.parse_error,
-                            enif_make_string(
-                                env,
-                                csv_strerror(csv_error(&parser->p)),
-                                ERL_NIF_LATIN1
-                                )
-                            )
-                        );
-            };
-            ErlNifTime diff = enif_monotonic_time(ERL_NIF_USEC) - start;
-            offset += size;
-            int percent = diff / 10;
-            if (percent > 100) percent = 100;
-            // enif_fprintf(stderr, "Consume %i%% (%.2f%%)\n", percent, (float)offset / bin_raw.size * 100);
-            if (enif_consume_timeslice(env, percent) && offset < bin_raw.size) {
-                ERL_NIF_TERM newargv[4] = {
-                    argv[0],
-                    argv[1],
-                    return_so_far(env, parser),
-                    enif_make_uint64(env, (ErlNifUInt64)offset)
-                };
-                return enif_schedule_nif(env, "parse", 0, parse, 4, newargv);
-            }
-        }
-    }
 
-    ERL_NIF_TERM result = return_so_far(env, parser);
-    return enif_make_tuple3(env, atoms.ok, result, argv[1]);
+    return  csv_error(&parser->p)
+        ? enif_make_tuple3(env,
+                atoms.error,
+                result,
+                enif_make_tuple2(env,
+                    atoms.parse_error,
+                    enif_make_string(env, csv_strerror(csv_error(&parser->p)),
+                        ERL_NIF_LATIN1)
+                    )
+                )
+        : enif_make_tuple3(env, atoms.ok, result, argv[1]);
 }
 
 #pragma GCC diagnostic push
@@ -276,7 +228,7 @@ NIF(parse)
 static ErlNifFunc nif_funcs[] =
 {
     {"parser_init", 2, parser_init},
-    {"parse",       4, parse}
+    {"parse_",       3, parse}
 };
 #pragma GCC diagnostic pop
 
