@@ -5,6 +5,7 @@
          parser_init/1
          , parse/1
          , parse/2
+         , parse_step/2
          , parse_stream/4
          , parse_stream/5
          , file_reader/0
@@ -55,13 +56,18 @@ default_block_size() ->
 
 -spec(parse(Bin :: binary()) -> [row()]).
 parse(Bin) ->
-    {ok, Acc, S} = parse_raw(Bin, parser_init([]), []),
+    parse(Bin, []).
+
+-spec(parse(Bin :: binary(), Opts :: options()) -> [row()]).
+parse(Bin, Opts) ->
+    {ok, Acc, S} = parse_raw(Bin, parser_init(Opts), []),
     {ok, Ls, _} = parse_raw(eof, S, Acc),
     lists:reverse(Ls).
 
--spec(parse(Bin :: binary(), State :: state()) -> {ok, [row()], State2 :: state()}).
-parse(Bin, State) ->
-    parse_raw(Bin, State, []).
+-spec(parse_step(Input :: input(), State :: state()) -> {ok, [row()], State2 :: state()}).
+parse_step(Bin, State) ->
+    {ok, Ls, S2} = parse_raw(Bin, State, []),
+    {ok, lists:reverse(Ls), S2}.
 
 -spec(parse_stream(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST) -> {RS :: RST, CS :: CST, State :: state()}).
 parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState) ->
