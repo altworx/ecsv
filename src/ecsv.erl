@@ -35,7 +35,7 @@
                     {'delimiter', byte()} | {'quote', byte()}.
 -type options() :: [option()].
 
--opaque state() :: any().
+-type state() :: any().
 -type row() :: tuple().
 -type input() :: eof | (Bin :: binary()).
 
