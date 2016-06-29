@@ -24,13 +24,23 @@ typedef struct {
 } ecsv_parser_t;
 
 static ErlNifResourceType *ecsv_parser_type = NULL;
+#define for_atoms(M) \
+    M(ok); \
+    M(error); \
+    M(eof); \
+    M(insufficient_memory); \
+    M(parse_error); \
+    M(owner_mismatch); \
+    M(strict); \
+    M(all_lines); \
+    M(strict_finish); \
+    M(null); \
+    M(delimiter); \
+    M(quote); \
+    M(unknown_option)
+#define declare_field(X) ERL_NIF_TERM X
 static struct {
-    ERL_NIF_TERM ok;
-    ERL_NIF_TERM error;
-    ERL_NIF_TERM eof;
-    ERL_NIF_TERM insufficient_memory;
-    ERL_NIF_TERM parse_error;
-    ERL_NIF_TERM owner_mismatch;
+    for_atoms(declare_field);
 } atoms;
 
 static void field_call_back(void *s, size_t len, void *data)
@@ -123,12 +133,8 @@ release_ecsv_parser(UNUSED(ErlNifEnv * env), void *obj)
 static int
 load(ErlNifEnv *env, UNUSED(void **priv), UNUSED(ERL_NIF_TERM load_info))
 {
-    atoms.ok = enif_make_atom(env, "ok");
-    atoms.error = enif_make_atom(env, "error");
-    atoms.eof = enif_make_atom(env, "eof");
-    atoms.insufficient_memory = enif_make_atom(env, "insufficient_memory");
-    atoms.parse_error = enif_make_atom(env, "parse_error");
-    atoms.owner_mismatch = enif_make_atom(env, "owner_mismatch");
+#define make_atom(X) atoms.X = enif_make_atom(env, #X)
+    for_atoms(make_atom);
     ecsv_parser_type = enif_open_resource_type(
             env, NULL, "ecsv_parser", release_ecsv_parser,
             ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER, NULL);
