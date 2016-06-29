@@ -2,7 +2,7 @@
 
 %% API exports
 -export([
-         parser_init/2
+         parser_init/1
          , parse/1
          , parse/2
          , parse_stream/4
@@ -12,7 +12,17 @@
          , default_block_size/0
         ]).
 
--export_type([state/0, row/0, input/0, reader_state/0, reader_fun/1, callback_state/0, callback_message/0, callback_fun/1]).
+-export_type([
+              state/0
+              , options/0
+              , row/0
+              , input/0
+              , reader_state/0
+              , reader_fun/1
+              , callback_state/0
+              , callback_message/0
+              , callback_fun/1
+             ]).
 
 -define(APPNAME, ?MODULE).
 -define(LIBNAME, ?MODULE).
@@ -20,6 +30,10 @@
 -define(BLOCK_SIZE, 1024*20). %% 20kB
 
 -on_load(init/0).
+
+-type option() :: 'strict' | 'null' | 'all_lines' | 'strict_finish' |
+                    {'delimiter', byte()} | {'quote', byte()}.
+-type options() :: [option()].
 
 -opaque state() :: any().
 -type row() :: tuple().
@@ -41,7 +55,7 @@ default_block_size() ->
 
 -spec(parse(Bin :: binary()) -> [row()]).
 parse(Bin) ->
-    {ok, Acc, S} = parse_raw(Bin, default_state(), []),
+    {ok, Acc, S} = parse_raw(Bin, parser_init([]), []),
     {ok, Ls, _} = parse_raw(eof, S, Acc),
     lists:reverse(Ls).
 
@@ -52,7 +66,7 @@ parse(Bin, State) ->
 -spec(parse_stream(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST) -> {RS :: RST, CS :: CST, State :: state()}).
 parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState) ->
     parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState,
-                 default_state()).
+                 parser_init([])).
 
 
 -spec(parse_stream(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST, State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}).
@@ -60,9 +74,9 @@ parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState, State) ->
     parse_stream_(ReaderFun, ReaderState, CallbackFun, CallbackState,
                  State).
 
--spec(parser_init(Delim :: char(), Quote :: char()) -> state()).
-parser_init(Delim, Quote) ->
-    erlang:nif_error(not_loaded, [Delim, Quote]).
+-spec parser_init(Opts :: options()) -> state().
+parser_init(Opts) ->
+    erlang:nif_error(not_loaded, [Opts]).
 
 -spec(file_reader() -> reader_fun(reader_state())).
 file_reader() ->
@@ -86,9 +100,6 @@ block_chopper(BlockSize) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
-
-default_state() ->
-    parser_init($,, $").
 
 -spec(parse_stream_(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST, State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}).
 parse_stream_(RF, RS, CF, CS, State) ->

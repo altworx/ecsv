@@ -37,7 +37,7 @@ static ErlNifResourceType *ecsv_parser_type = NULL;
     M(null); \
     M(delimiter); \
     M(quote); \
-    M(unknown_option)
+    M(bad_option)
 #define declare_field(X) ERL_NIF_TERM X
 static struct {
     for_atoms(declare_field);
@@ -62,8 +62,13 @@ static void field_call_back(void *s, size_t len, void *data)
         }
     }
 
-    unsigned char *field = enif_make_new_binary(env, len, &line->fields[line->pos++]);
-    memcpy(field, s, len);
+    if (s) {
+        unsigned char *field = enif_make_new_binary(env, len, &line->fields[line->pos]);
+        memcpy(field, s, len);
+    } else {
+        line->fields[line->pos] = atoms.null;
+    }
+    line->pos++;
 }
 
 
@@ -81,19 +86,43 @@ static void line_call_back(UNUSED(int c), void *data)
 
 NIF(parser_init)
 {
-    unsigned int delimiter;
-    unsigned int quote;
+    unsigned int delimiter = CSV_COMMA;
+    unsigned int quote = CSV_QUOTE;
     ecsv_parser_t *parser;
-    unsigned char options = CSV_APPEND_NULL;
-    ERL_NIF_TERM term;
+    unsigned char options = 0;
+    ERL_NIF_TERM term, head, list = argv[0];
 
-    unless (argc == 2 &&
-            enif_get_uint(env, argv[0], &delimiter) &&
-            enif_get_uint(env, argv[1], &quote)) {
-        return enif_make_badarg(env);
-    };
+    unless (argc == 1) return enif_make_badarg(env);
 
-    unless ((parser = enif_alloc_resource(ecsv_parser_type, sizeof(ecsv_parser_t)))) {
+    while (enif_get_list_cell(env, list, &head, &list)) {
+        const ERL_NIF_TERM *elems;
+        int arity;
+        if (enif_is_identical(atoms.strict, head)) {
+            options |= CSV_STRICT;
+        } else if (enif_is_identical(atoms.null, head)) {
+            options |= CSV_EMPTY_IS_NULL;
+        } else if (enif_is_identical(atoms.all_lines, head)) {
+            options |= CSV_REPALL_NL;
+        } else if (enif_is_identical(atoms.strict_finish, head)) {
+            options |= CSV_STRICT_FINI;
+        } else unless (
+                enif_get_tuple(env, head, &arity, &elems) &&
+                arity == 2 &&
+                ((enif_is_identical(atoms.delimiter, elems[0]) &&
+                  enif_get_uint(env, elems[1], &delimiter) &&
+                  delimiter < 0x100) ||
+                 (enif_is_identical(atoms.quote, elems[0]) &&
+                  enif_get_uint(env, elems[1], &quote) &&
+                  quote < 0x100))
+                ) {
+            return enif_raise_exception(env,
+                    enif_make_tuple2(env, atoms.bad_option, head));
+        }
+    }
+
+    unless (enif_is_empty_list(env, list)) return enif_make_badarg(env);
+
+    unless ((parser = enif_alloc_resource(ecsv_parser_type, sizeof(*parser)))) {
         term = enif_raise_exception(env, atoms.insufficient_memory);
         goto alloc_error;
     };
@@ -234,7 +263,7 @@ NIF(parse)
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 static ErlNifFunc nif_funcs[] =
 {
-    {"parser_init", 2, parser_init},
+    {"parser_init", 1, parser_init},
     {"parse_nif",   3, parse}
 };
 #pragma GCC diagnostic pop
