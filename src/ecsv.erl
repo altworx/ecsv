@@ -11,12 +11,17 @@
          , file_reader/0
          , block_chopper/1
          , default_block_size/0
+         , write/1
+         , write_lines/1
         ]).
+
+-export([test/1]).
 
 -export_type([
               state/0
               , options/0
               , row/0
+              , line/0
               , input/0
               , reader_state/0
               , reader_fun/1
@@ -38,6 +43,7 @@
 
 -type state() :: any().
 -type row() :: tuple().
+-type line() :: [atom()|number()|iolist()].
 -type input() :: eof | (Bin :: binary()).
 
 -type reader_state() :: any().
@@ -103,9 +109,23 @@ block_chopper(BlockSize) ->
             {Bin, <<>>}
     end.
 
+-spec write_lines([line()]) -> iolist().
+write_lines(L) ->
+    write_lines(L, []).
+
+-spec write(line()) -> binary().
+write(L) ->
+    erlang:nif_error(not_loaded, [L]).
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+-dialyzer({no_improper_lists, write_lines/2}).
+-spec write_lines([line()], iolist()) -> iolist().
+write_lines([], Acc) -> Acc;
+write_lines([H|T], Acc) ->
+    write_lines(T, [Acc|write(H)]).
 
 -spec(parse_stream_(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST, State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}).
 parse_stream_(RF, RS, CF, CS, State) ->
@@ -146,3 +166,6 @@ init() ->
             filename:join(Dir, ?LIBNAME)
     end,
     erlang:load_nif(SoName, 0).
+
+test(X) ->
+    erlang:nif_error(not_loaded, [X]).

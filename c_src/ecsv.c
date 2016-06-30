@@ -4,8 +4,25 @@
 
 enum {
     START_FIELDS = 8,
+    START_BUFFER_SIZE = 64,
+    INT_SPACE = 21,         // 20 + 1 for sign
+    FLOAT_SPACE = 30,
 };
 
+#define for_atoms(M) \
+    M(ok); \
+    M(error); \
+    M(eof); \
+    M(insufficient_memory); \
+    M(parse_error); \
+    M(owner_mismatch); \
+    M(strict); \
+    M(all_lines); \
+    M(strict_finish); \
+    M(null); \
+    M(delimiter); \
+    M(quote); \
+    M(bad_option)
 typedef struct {
     ERL_NIF_TERM *fields;
     size_t len;
@@ -24,24 +41,12 @@ typedef struct {
 } ecsv_parser_t;
 
 static ErlNifResourceType *ecsv_parser_type = NULL;
-#define for_atoms(M) \
-    M(ok); \
-    M(error); \
-    M(eof); \
-    M(insufficient_memory); \
-    M(parse_error); \
-    M(owner_mismatch); \
-    M(strict); \
-    M(all_lines); \
-    M(strict_finish); \
-    M(null); \
-    M(delimiter); \
-    M(quote); \
-    M(bad_option)
 #define declare_field(X) ERL_NIF_TERM X
 static struct {
     for_atoms(declare_field);
 } atoms;
+
+static inline uint64_t clp2l(uint64_t x) { return x>1?(uint64_t)INT64_MIN >> (__builtin_clzl(x-1)-1):x; }
 
 static void field_call_back(void *s, size_t len, void *data)
 {
@@ -259,10 +264,93 @@ NIF(parse)
         : enif_make_tuple3(env, atoms.ok, result, argv[1]);
 }
 
+static inline int resize_binary(ErlNifBinary *bin, size_t size) {
+    size_t s = size + 1; // add space for ',' or '\n'
+    if (s < START_BUFFER_SIZE) s = START_BUFFER_SIZE;
+    if (s > bin->size) {
+        s = clp2l(s);
+        return bin->size ? enif_realloc_binary(bin, s) : enif_alloc_binary(s, bin);
+    }
+    return 1;
+}
+
+NIF(write)
+{
+    ErlNifBinary buf = {0};
+    ERL_NIF_TERM result, head, list = argv[0];
+    size_t p = 0;
+
+    while (enif_get_list_cell(env, list, &head, &list)) {
+        ErlNifBinary bin;
+        ErlNifSInt64 i;
+        double d;
+        char atom_buff[256];
+        unsigned atom_len;
+        size_t s = 0;
+        if (enif_get_int64(env, head, &i)) {
+            unless (resize_binary(&buf, p + INT_SPACE)) {
+                result = enif_raise_exception(env, atoms.insufficient_memory);
+                goto error;
+            }
+            s = snprintf((char *)buf.data + p, buf.size - p, "%li", i);
+        } else if (enif_get_double(env, head, &d)) {
+            unless (resize_binary(&buf, p + FLOAT_SPACE)) {
+                result = enif_raise_exception(env, atoms.insufficient_memory);
+                goto error;
+            }
+            s = snprintf((char *)buf.data + p, buf.size - p, "%.16lg", d);
+        } else if ((atom_len = enif_get_atom(env, head, atom_buff, 256, ERL_NIF_LATIN1))) {
+            unless (resize_binary(&buf, p + atom_len * 2 + 2)) {
+                result = enif_raise_exception(env, atoms.insufficient_memory);
+                goto error;
+            }
+            s = csv_write((char *)buf.data + p, buf.size - p, atom_buff, atom_len-1);
+        } else if (enif_inspect_binary(env, head, &bin) ||
+                enif_inspect_iolist_as_binary(env, head, &bin)) {
+            unless (resize_binary(&buf, p + bin.size * 2 + 2)) {
+                result = enif_raise_exception(env, atoms.insufficient_memory);
+                goto error;
+            }
+            s = csv_write((char *)buf.data + p, buf.size - p, bin.data, bin.size);
+        } else {
+            result = enif_make_badarg(env);
+            goto error;
+        }
+        p += s;
+        buf.data[p++] = CSV_COMMA;
+    }
+    if (p) buf.data[p-1] = CSV_LF;
+
+    unless (enif_is_empty_list(env, list)) {
+        result = enif_make_badarg(env);
+        goto error;
+    }
+
+    enif_realloc_binary(&buf, p);
+    result = enif_make_binary(env, &buf);
+    return result;
+
+error:
+    if (buf.size) enif_release_binary(&buf);
+    return result;
+}
+
+NIF(test)
+{
+    ErlNifUInt64 v;
+
+    unless (argc == 1 && enif_get_uint64(env, argv[0], &v))
+        return enif_make_badarg(env);
+
+    return enif_make_uint64(env, clp2l(v));
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 static ErlNifFunc nif_funcs[] =
 {
+    {"test", 1, test},
+    {"write", 1, write},
     {"parser_init", 1, parser_init},
     {"parse_nif",   3, parse}
 };
