@@ -111,21 +111,15 @@ block_chopper(BlockSize) ->
 
 -spec write_lines([line()]) -> iolist().
 write_lines(L) ->
-    write_lines(L, []).
+    erlang:nif_error(not_loaded, [L]).
 
--spec write(line()) -> binary().
+-spec write(line()) -> iolist().
 write(L) ->
     erlang:nif_error(not_loaded, [L]).
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
-
--dialyzer({no_improper_lists, write_lines/2}).
--spec write_lines([line()], iolist()) -> iolist().
-write_lines([], Acc) -> Acc;
-write_lines([H|T], Acc) ->
-    write_lines(T, [Acc|write(H)]).
 
 -spec(parse_stream_(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST, State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}).
 parse_stream_(RF, RS, CF, CS, State) ->
