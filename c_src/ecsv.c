@@ -1,5 +1,7 @@
+// Copyright 2016 Altworx. All rights reserved.
 //#define trace_debug
 #include "ecsv_nif.h"
+#include "ecsv_atoms.h"
 #include <csv.h>
 
 enum {
@@ -8,21 +10,6 @@ enum {
     FLOAT_SPACE = 30,
 };
 
-#define for_atoms(M) \
-    M(ok); \
-    M(error); \
-    M(eof); \
-    M(insufficient_memory); \
-    M(parse_error); \
-    M(owner_mismatch); \
-    M(strict); \
-    M(all_lines); \
-    M(strict_finish); \
-    M(null); \
-    M(delimiter); \
-    M(quote); \
-    M(bad_option); \
-    M(badarg)
 typedef struct {
     ERL_NIF_TERM *fields;
     size_t len;
@@ -41,10 +28,6 @@ typedef struct {
 } ecsv_parser_t;
 
 static ErlNifResourceType *ecsv_parser_type = NULL;
-#define declare_field(X) ERL_NIF_TERM X
-static struct {
-    for_atoms(declare_field);
-} atoms;
 
 static inline uint64_t clp2l(uint64_t x) { return x>1?(uint64_t)INT64_MIN >> (__builtin_clzl(x-1)-1):x; }
 
@@ -167,8 +150,7 @@ release_ecsv_parser(UNUSED(ErlNifEnv * env), void *obj)
 static int
 load(ErlNifEnv *env, UNUSED(void **priv), UNUSED(ERL_NIF_TERM load_info))
 {
-#define make_atom(X) atoms.X = enif_make_atom(env, #X)
-    for_atoms(make_atom);
+    init_ecsv_atoms(env);
     ecsv_parser_type = enif_open_resource_type(
             env, NULL, "ecsv_parser", release_ecsv_parser,
             ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER, NULL);
