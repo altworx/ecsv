@@ -9,8 +9,6 @@
          , write_lines/1
         ]).
 
--export([test/1]).
-
 -on_load(init/0).
 
 -define(APPNAME, ecsv).
@@ -48,6 +46,3 @@ init() ->
             filename:join(Dir, ?LIBNAME)
     end,
     erlang:load_nif(SoName, 0).
-
-test(X) ->
-    erlang:nif_error(not_loaded, [X]).
