@@ -22,8 +22,10 @@
 parser_init(Opts) ->
     erlang:nif_error(not_loaded, [Opts]).
 
-parse(Bin, _, _) ->
-    erlang:nif_error(not_loaded, [Bin]).
+-spec parse(Input :: ecsv:input(), State0 :: ecsv:state(), Acc0 :: [ecsv:row()]) ->
+    {ok, Acc :: [ecsv:row()], State :: ecsv:state()}.
+parse(Input, _, _) ->
+    erlang:nif_error(not_loaded, [Input]).
 
 -spec write_lines([ecsv:line()]) -> iolist().
 write_lines(L) ->

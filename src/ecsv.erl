@@ -28,7 +28,7 @@
               , callback_fun/1
              ]).
 
--define(BLOCK_SIZE, 1024*20). %% 20kB
+-define(BLOCK_SIZE, 20 * 1024). %% 20kB
 
 -type option() :: 'strict' | 'null' | 'all_lines' | 'strict_finish' |
                     {'delimiter', byte()} | {'quote', byte()}.
@@ -36,54 +36,64 @@
 
 -type state() :: any().
 -type row() :: tuple().
--type line() :: [atom()|number()|iolist()].
--type input() :: eof | (Bin :: binary()).
+-type line() :: [atom() | number() | iolist()].
+-type input() :: eof | binary().
 
 -type reader_state() :: any().
--type reader_fun(RS) :: fun((State0 :: RS) -> State :: RS).
+-type reader_fun(ReaderStateType) ::
+    fun((State0 :: ReaderStateType) -> State :: ReaderStateType).
 
 -type callback_state() :: any().
 -type callback_message() :: {eof | lines, [row()]}.
--type callback_fun(CS) :: fun((Message :: callback_message(), State0 :: CS) -> State :: CS).
+-type callback_fun(CallBackStateType) ::
+    fun((Message :: callback_message(), State0 :: CallBackStateType) ->
+        State :: CallBackStateType).
 
 %%====================================================================
 %% API functions
 %%====================================================================
 
+-spec default_block_size() -> ?BLOCK_SIZE.
 default_block_size() ->
     ?BLOCK_SIZE.
 
--spec(parse(Bin :: binary()) -> [row()]).
+-spec parse(Bin :: binary()) -> [row()].
 parse(Bin) ->
     parse(Bin, []).
 
--spec(parse(Bin :: binary(), Opts :: options()) -> [row()]).
+-spec parse(Bin :: binary(), Opts :: options()) -> [row()].
 parse(Bin, Opts) ->
     {ok, Acc, S} = parse_raw(Bin, parser_init(Opts), []),
     {ok, Ls, _} = parse_raw(eof, S, Acc),
     lists:reverse(Ls).
 
--spec(parse_step(Input :: input(), State :: state()) -> {ok, [row()], State2 :: state()}).
+-spec parse_step(Input :: input(), State0 :: state()) -> {ok, [row()], State :: state()}.
 parse_step(Bin, State) ->
     {ok, Ls, S2} = parse_raw(Bin, State, []),
     {ok, lists:reverse(Ls), S2}.
 
--spec(parse_stream(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST) -> {RS :: RST, CS :: CST, State :: state()}).
-parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState) ->
-    parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState,
-                 parser_init([])).
+-spec parse_stream(
+        reader_fun(ReaderStateType), ReaderState0 :: ReaderStateType,
+        callback_fun(CallBackStateType), CallbackState0 :: CallBackStateType) ->
+    {ReaderState :: ReaderStateType, CallbackState :: CallBackStateType,
+     State :: state()}.
+parse_stream(Reader, ReaderState0, CallBack, CallbackState0) ->
+    parse_stream(Reader, ReaderState0, CallBack, CallbackState0, parser_init([])).
 
-
--spec(parse_stream(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST, State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}).
-parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState, State) ->
-    parse_stream_(ReaderFun, ReaderState, CallbackFun, CallbackState,
-                 State).
+-spec parse_stream(
+        reader_fun(ReaderStateType), ReaderState0 :: ReaderStateType,
+        callback_fun(CallBackStateType), CallbackState0 :: CallBackStateType,
+        State0 :: state()) ->
+    {ReaderState :: ReaderStateType, CallBackState :: CallBackStateType,
+     State :: state()}.
+parse_stream(Reader, ReaderState0, CallBack, CallbackState0, State) ->
+    parse_stream_(Reader, ReaderState0, CallBack, CallbackState0, State).
 
 -spec parser_init(Opts :: options()) -> state().
 parser_init(Opts) ->
     ecsv_nif:parser_init(Opts).
 
--spec(file_reader() -> reader_fun(reader_state())).
+-spec file_reader() -> reader_fun(file:io_device()).
 file_reader() ->
     fun(FS) ->
             case file:read(FS, ?BLOCK_SIZE) of
@@ -92,13 +102,13 @@ file_reader() ->
             end
     end.
 
--spec(block_chopper(BlockSize :: pos_integer()) -> reader_fun(reader_state())).
+-spec block_chopper(BlockSize :: pos_integer()) -> reader_fun(binary()).
 block_chopper(BlockSize) ->
     fun(<<>>) ->
             {eof, <<>>};
        (<<Bin:BlockSize/bytes, Rest/bytes>>) ->
             {Bin, Rest};
-       (Bin) ->
+       (<<_/bytes>> = Bin) ->
             {Bin, <<>>}
     end.
 
@@ -114,7 +124,10 @@ write(L) ->
 %% Internal functions
 %%====================================================================
 
--spec(parse_stream_(RF :: reader_fun(RST), RS0 :: RST, CF :: callback_fun(CST), CS0 :: CST, State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}).
+-spec parse_stream_(
+        RF :: reader_fun(RST), RS0 :: RST,
+        CF :: callback_fun(CST), CS0 :: CST,
+        State0 :: state()) -> {RS :: RST, CS :: CST, State :: state()}.
 parse_stream_(RF, RS, CF, CS, State) ->
     case RF(RS) of
         {eof, RS2} ->
@@ -134,5 +147,5 @@ parse_raw(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
     parse_raw(Rest, S2, Acc2);
 parse_raw(<<>>, State, Acc) ->
     {ok, Acc, State};
-parse_raw(Bin, State, Acc) ->
+parse_raw(<<_/bytes>> = Bin, State, Acc) ->
     ecsv_nif:parse(Bin, State, Acc).
