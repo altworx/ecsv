@@ -539,7 +539,6 @@ NIF(write_lines)
     init_writer(env, &writer);
     ERL_NIF_TERM result, head, list = argv[0];
 
-
     while (enif_get_list_cell(env, list, &head, &list) && write_line(&writer, head)) {
     };
     if (enif_is_empty_list(env, list)) {
@@ -548,6 +547,7 @@ NIF(write_lines)
     } else {
         result = enif_raise_exception(env, enif_make_tuple2(env, atoms.badarg, list));
     }
+
     release_writer_st(&writer);
     return result;
 }
@@ -570,10 +570,10 @@ static ErlNifFunc nif_funcs[] =
     {"write", 1, write},
     {"write_lines", 1, write_lines},
     {"parser_init", 1, parser_init},
-    {"parse_nif",   3, parse}
+    {"parse",   3, parse}
 };
 #pragma GCC diagnostic pop
 
 #pragma GCC visibility push(default)
-ERL_NIF_INIT(ecsv, nif_funcs, &load, NULL, NULL, NULL)
+ERL_NIF_INIT(ecsv_nif, nif_funcs, &load, NULL, NULL, NULL)
 #pragma GCC visibility pop

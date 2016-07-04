@@ -15,8 +15,6 @@
          , write_lines/1
         ]).
 
--export([test/1]).
-
 -export_type([
               state/0
               , options/0
@@ -30,12 +28,7 @@
               , callback_fun/1
              ]).
 
--define(APPNAME, ?MODULE).
--define(LIBNAME, ?MODULE).
-
 -define(BLOCK_SIZE, 1024*20). %% 20kB
-
--on_load(init/0).
 
 -type option() :: 'strict' | 'null' | 'all_lines' | 'strict_finish' |
                     {'delimiter', byte()} | {'quote', byte()}.
@@ -88,7 +81,7 @@ parse_stream(ReaderFun, ReaderState, CallbackFun, CallbackState, State) ->
 
 -spec parser_init(Opts :: options()) -> state().
 parser_init(Opts) ->
-    erlang:nif_error(not_loaded, [Opts]).
+    ecsv_nif:parser_init(Opts).
 
 -spec(file_reader() -> reader_fun(reader_state())).
 file_reader() ->
@@ -111,11 +104,11 @@ block_chopper(BlockSize) ->
 
 -spec write_lines([line()]) -> iolist().
 write_lines(L) ->
-    erlang:nif_error(not_loaded, [L]).
+    ecsv_nif:write_lines(L).
 
 -spec write(line()) -> iolist().
 write(L) ->
-    erlang:nif_error(not_loaded, [L]).
+    ecsv_nif:write(L).
 
 %%====================================================================
 %% Internal functions
@@ -135,31 +128,11 @@ parse_stream_(RF, RS, CF, CS, State) ->
     end.
 
 -spec(parse_raw(Input :: input(), State0 :: state(), Acc :: [row()]) -> {ok, [row()], State :: state()}).
-parse_raw(eof, State, Acc) -> parse_nif(eof, State, Acc);
+parse_raw(eof, State, Acc) -> ecsv_nif:parse(eof, State, Acc);
 parse_raw(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
-    {ok, Acc2, S2} = parse_nif(Bin, State, Acc),
+    {ok, Acc2, S2} = ecsv_nif:parse(Bin, State, Acc),
     parse_raw(Rest, S2, Acc2);
 parse_raw(<<>>, State, Acc) ->
     {ok, Acc, State};
 parse_raw(Bin, State, Acc) ->
-    parse_nif(Bin, State, Acc).
-
-parse_nif(Bin, _, _) ->
-    erlang:nif_error(not_loaded, [Bin]).
-
-init() ->
-    SoName = case code:priv_dir(?APPNAME) of
-        {error, bad_name} ->
-            case filelib:is_dir(filename:join(["..", priv])) of
-                true ->
-                    filename:join(["..", priv, ?LIBNAME]);
-                _ ->
-                    filename:join([priv, ?LIBNAME])
-            end;
-        Dir ->
-            filename:join(Dir, ?LIBNAME)
-    end,
-    erlang:load_nif(SoName, 0).
-
-test(X) ->
-    erlang:nif_error(not_loaded, [X]).
+    ecsv_nif:parse(Bin, State, Acc).
