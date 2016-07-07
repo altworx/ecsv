@@ -44,7 +44,7 @@
     fun((State0 :: ReaderStateType) -> State :: ReaderStateType).
 
 -type callback_state() :: any().
--type callback_message() :: {eof | lines, [row()]}.
+-type callback_message() :: {eof | rows, [row()]}.
 -type callback_fun(CallBackStateType) ::
     fun((Message :: callback_message(), State0 :: CallBackStateType) ->
         State :: CallBackStateType).
@@ -136,7 +136,7 @@ parse_stream_(RF, RS, CF, CS, State) ->
             {RS2, CS2, S2};
         {Bin, RS2} ->
             {ok, Ls, S2} = parse_raw(Bin, State, []),
-            CS2 = CF({lines, Ls}, CS),
+            CS2 = CF({rows, Ls}, CS),
             parse_stream_(RF, RS2, CF, CS2, S2)
     end.
 
