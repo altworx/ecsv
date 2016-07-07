@@ -2,6 +2,7 @@
 
 #include "ecsv_nif.h"
 #include "ecsv_atoms.h"
+#include "ecsv_time.h"
 #include <csv.h>
 
 enum {
@@ -271,12 +272,16 @@ NIF(write)
     init_writer(env, &writer);
     ERL_NIF_TERM result;
 
+    T_START;
+
     if (write_line(&writer, argv[0])) {
         result = return_result(&writer);
     } else {
         release_writer_st(&writer);
         enif_has_pending_exception(env, &result);
     }
+
+    T_STOP;
 
     return result;
 }
@@ -287,16 +292,20 @@ NIF(write_lines)
     init_writer(env, &writer);
     ERL_NIF_TERM result, head, list = argv[0];
 
+    T_START;
+
     while (enif_get_list_cell(env, list, &head, &list) && write_line(&writer, head)) {
     };
+
     if (enif_is_empty_list(env, list)) {
-        return return_result(&writer);
-    } else if (enif_has_pending_exception(env, &result)) {
+        result = return_result(&writer);
     } else {
-        result = enif_raise_exception(env, enif_make_tuple2(env, atoms.badarg, list));
+        unless (enif_has_pending_exception(env, &result))
+            result = enif_raise_exception(env, enif_make_tuple2(env, atoms.badarg, list));
+        release_writer_st(&writer);
     }
 
-    release_writer_st(&writer);
+    T_STOP;
     return result;
 }
 

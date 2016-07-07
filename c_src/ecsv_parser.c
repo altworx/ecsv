@@ -2,6 +2,7 @@
 
 #include "ecsv_nif.h"
 #include "ecsv_atoms.h"
+#include "ecsv_time.h"
 #include <csv.h>
 
 enum {
@@ -37,6 +38,8 @@ NIF(parser_init)
 
     unless (argc == 1) return enif_make_badarg(env);
 
+    T_START;
+
     while (enif_get_list_cell(env, list, &head, &list)) {
         const ERL_NIF_TERM *elems;
         int arity;
@@ -58,6 +61,7 @@ NIF(parser_init)
                   enif_get_uint(env, elems[1], &quote) &&
                   quote < 0x100))
                 ) {
+            T_STOP;
             return enif_raise_exception(env,
                     enif_make_tuple2(env, atoms.bad_option, head));
         }
@@ -88,6 +92,7 @@ NIF(parser_init)
 init_error:
     enif_release_resource(parser);
 alloc_error:
+    T_STOP;
     return term;
 }
 
@@ -166,6 +171,8 @@ NIF(parse)
     ecsv_parser_t *parser;
     int eof = 0;
 
+    T_START;
+
     unless (argc == 3 &&
             (
              (eof = enif_is_identical(argv[0], atoms.eof)) ||
@@ -187,8 +194,6 @@ NIF(parse)
         }
     }
 
-    ErlNifTime start = enif_monotonic_time(ERL_NIF_USEC);
-
     enif_free_env(copy_current_line(env, parser));
     parser->lines = argv[2];
 
@@ -200,12 +205,7 @@ NIF(parse)
     }
     ERL_NIF_TERM result = return_so_far(env, parser);
 
-    {
-        ErlNifTime diff = enif_monotonic_time(ERL_NIF_USEC) - start;
-        int percent = diff / 10;
-        if (percent > 100) percent = 100;
-        enif_consume_timeslice(env, percent);
-    }
+    T_STOP;
 
     return  csv_error(&parser->p)
         ? enif_make_tuple3(env,
