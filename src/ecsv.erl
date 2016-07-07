@@ -78,16 +78,20 @@ parse_step(Bin, State) ->
     {ReaderState :: ReaderStateType, CallbackState :: CallBackStateType,
      State :: state()}.
 parse_stream(Reader, ReaderState0, CallBack, CallbackState0) ->
-    parse_stream(Reader, ReaderState0, CallBack, CallbackState0, parser_init([])).
+    parse_stream(Reader, ReaderState0, CallBack, CallbackState0, []).
 
 -spec parse_stream(
         reader_fun(ReaderStateType), ReaderState0 :: ReaderStateType,
         callback_fun(CallBackStateType), CallbackState0 :: CallBackStateType,
-        State0 :: state()) ->
+        StateOrOpts :: state() | options()) ->
     {ReaderState :: ReaderStateType, CallBackState :: CallBackStateType,
      State :: state()}.
 parse_stream(Reader, ReaderState0, CallBack, CallbackState0, State) ->
-    parse_stream_(Reader, ReaderState0, CallBack, CallbackState0, State).
+    parse_stream_(Reader, ReaderState0, CallBack, CallbackState0,
+                  if
+                      is_list(State) -> parser_init(State);
+                      true           -> State
+                  end).
 
 -spec parser_init(Opts :: options()) -> state().
 parser_init(Opts) ->
