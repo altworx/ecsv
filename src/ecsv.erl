@@ -8,6 +8,7 @@
          , parse_step/2
          , parse_stream/4
          , parse_stream/5
+         , parse_raw/3
          , file_reader/0
          , block_chopper/1
          , default_block_size/0
@@ -93,6 +94,17 @@ parse_stream(Reader, ReaderState0, CallBack, CallbackState0, State) ->
                       true           -> State
                   end).
 
+-spec parse_raw(Input :: input(), State0 :: state(), Acc :: [row()]) ->
+    {ok, RevRows :: [row()], State :: state()}.
+parse_raw(eof, State, Acc) -> ecsv_nif:parse(eof, State, Acc);
+parse_raw(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
+    {ok, Acc2, S2} = ecsv_nif:parse(Bin, State, Acc),
+    parse_raw(Rest, S2, Acc2);
+parse_raw(<<>>, State, Acc) ->
+    {ok, Acc, State};
+parse_raw(<<_/bytes>> = Bin, State, Acc) ->
+    ecsv_nif:parse(Bin, State, Acc).
+
 -spec parser_init(Opts :: options()) -> state().
 parser_init(Opts) ->
     ecsv_nif:parser_init(Opts).
@@ -143,13 +155,3 @@ parse_stream_(RF, RS, CF, CS, State) ->
             CS2 = CF({rows, Ls}, CS),
             parse_stream_(RF, RS2, CF, CS2, S2)
     end.
-
--spec(parse_raw(Input :: input(), State0 :: state(), Acc :: [row()]) -> {ok, [row()], State :: state()}).
-parse_raw(eof, State, Acc) -> ecsv_nif:parse(eof, State, Acc);
-parse_raw(<<Bin:(?BLOCK_SIZE)/bytes, Rest/bytes>>, State, Acc) ->
-    {ok, Acc2, S2} = ecsv_nif:parse(Bin, State, Acc),
-    parse_raw(Rest, S2, Acc2);
-parse_raw(<<>>, State, Acc) ->
-    {ok, Acc, State};
-parse_raw(<<_/bytes>> = Bin, State, Acc) ->
-    ecsv_nif:parse(Bin, State, Acc).
