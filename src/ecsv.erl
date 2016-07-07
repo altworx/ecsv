@@ -103,7 +103,7 @@ file_reader() ->
     end.
 
 -spec block_chopper(BlockSize :: pos_integer()) -> reader_fun(binary()).
-block_chopper(BlockSize) ->
+block_chopper(BlockSize) when is_integer(BlockSize), BlockSize > 0 ->
     fun(<<>>) ->
             {eof, <<>>};
        (<<Bin:BlockSize/bytes, Rest/bytes>>) ->
