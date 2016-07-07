@@ -11,6 +11,7 @@
          , parse_raw/3
          , file_reader/0
          , block_chopper/1
+         , accumulator/0
          , default_block_size/0
          , write/1
          , write_lines/1
@@ -128,6 +129,9 @@ block_chopper(BlockSize) when is_integer(BlockSize), BlockSize > 0 ->
             {Bin, <<>>}
     end.
 
+-spec accumulator() -> fun((callback_message(), [row()]) -> [row()]).
+accumulator() -> fun acc/2.
+
 -spec write_lines([line()]) -> iolist().
 write_lines(L) ->
     ecsv_nif:write_lines(L).
@@ -155,3 +159,7 @@ parse_stream_(RF, RS, CF, CS, State) ->
             CS2 = CF({rows, Ls}, CS),
             parse_stream_(RF, RS2, CF, CS2, S2)
     end.
+
+-spec acc(callback_message(), [row()]) -> [row()].
+acc({eof, X}, Acc) -> lists:reverse(X ++ Acc);
+acc({rows, X}, Acc) -> X ++ Acc.
