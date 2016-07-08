@@ -1,3 +1,9 @@
+%% @private
+%% @doc NIF API module
+%%
+%% Do not use this module directly.
+%%
+%% @end.
 -module(ecsv_nif).
 
 %% API exports
@@ -22,8 +28,14 @@
 parser_init(Opts) ->
     erlang:nif_error(not_loaded, [Opts]).
 
--spec parse(Input :: ecsv:input(), State0 :: ecsv:state(), Acc0 :: [ecsv:row()]) ->
-    {ok, Acc :: [ecsv:row()], State :: ecsv:state()}.
+-spec parse(Input, State0, Acc0) -> Result when
+    Input :: ecsv:input(),
+    State0 :: ecsv:state(),
+    Acc0 :: ecsv:rows(),
+    Result :: {ok, Acc, State} | {error, Acc, Reason},
+    Acc :: ecsv:rows(),
+    State :: ecsv:state(),
+    Reason :: any().
 parse(Input, _, _) ->
     erlang:nif_error(not_loaded, [Input]).
 
