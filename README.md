@@ -4,7 +4,7 @@
 
 Copyright (c) 2016 Altworx
 
-__Version:__ Jul 8 2016 22:31:27
+__Version:__ 0.2.0
 
 __Authors:__ Hynek Vychodil ([`hynek.vychodil@altworx.com`](mailto:hynek.vychodil@altworx.com)).
 

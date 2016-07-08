@@ -1,6 +1,6 @@
 @author Hynek Vychodil <hynek.vychodil@altworx.com>
 @copyright 2016 Altworx
-@version {@version}
+@version 0.2.0
 @title Erlang NIF CSV parser and writer
 @doc `ecsv' is fast NIF parser and writer based on <a href="https://sourceforge.net/projects/libcsv/">`libcsv'</a>
 
