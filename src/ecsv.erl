@@ -62,15 +62,21 @@
 -type reader_fun(ReaderStateType) ::
     fun((ReaderState0 :: ReaderStateType) ->
         {Input :: input(), ReaderState :: ReaderStateType}).
-%% Note function has to return `eof' as `Input' value otherwise {@link
-%% parse_stream/4} and {@link parse_stream/5} never finish.
+%% Reader function which feeds data to {@link parse_stream/4} and {@link
+%% parse_stream/5}.
+%%
+%% Note function has to return `eof' as the last `Input' value or {@link
+%% parse_stream/4} and {@link parse_stream/5} will never finish otherwise.
 
 -type callback_state() :: any().
 -type callback_message() :: {eof | rows, RevRows :: rows()}.
 -type callback_fun(CallBackStateType) ::
     fun((Message :: callback_message(), CallBackState0 :: CallBackStateType) ->
         CallBackState :: CallBackStateType).
-%% Note {@link callback_message()} contain `Rows' in reverse order.
+%% Callback function used for processing parsed data in {@link
+%% parse_stream/4} and {@link parse_stream/5}.
+%%
+%% Note {@link callback_message()} contains `Rows' in reverse order.
 
 %%====================================================================
 %% API functions
@@ -326,9 +332,9 @@ block_chopper(BlockSize) when is_integer(BlockSize), BlockSize > 0 ->
 
 %% @doc Return simple accumulator callback function.
 %%
-%% The callback function reverses rows as reaction to  `{eof, _}' callback
-%% message so returned final state is in order when used with {@link
-%% parse_stream/4} and {@link parse_stream/5}.
+%% The callback function (see {@link callback_fun()}) reverses rows as
+%% reaction to  `{eof, _}' callback message so returned final state is in
+%% order when used with {@link parse_stream/4} and {@link parse_stream/5}.
 %%
 %% Returned callback is equivalent to
 %%

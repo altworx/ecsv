@@ -22,7 +22,9 @@ Erlang NIF CSV parser and writer.
 callback_fun(CallBackStateType) = fun((Message::<a href="#type-callback_message">callback_message()</a>, CallBackState0::CallBackStateType) -&gt; CallBackState::CallBackStateType)
 </code></pre>
 
- Note [`callback_message()`](#type-callback_message) contain `Rows` in reverse order.
+ Callback function used for processing parsed data in [`parse_stream/4`](#parse_stream-4) and [`parse_stream/5`](#parse_stream-5).
+
+Note [`callback_message()`](#type-callback_message) contains `Rows` in reverse order.
 
 
 
@@ -94,7 +96,9 @@ options() = [<a href="#type-option">option()</a>]
 reader_fun(ReaderStateType) = fun((ReaderState0::ReaderStateType) -&gt; {Input::<a href="#type-input">input()</a>, ReaderState::ReaderStateType})
 </code></pre>
 
- Note function has to return `eof` as `Input` value otherwise [`parse_stream/4`](#parse_stream-4) and [`parse_stream/5`](#parse_stream-5) never finish.
+ Reader function which feeds data to [`parse_stream/4`](#parse_stream-4) and [`parse_stream/5`](#parse_stream-5).
+
+Note function has to return `eof` as the last `Input` value or [`parse_stream/4`](#parse_stream-4) and [`parse_stream/5`](#parse_stream-5) will never finish otherwise.
 
 
 
@@ -171,8 +175,9 @@ accumulator() -&gt; CallBack
 
 Return simple accumulator callback function.
 
-The callback function reverses rows as reaction to`{eof, _}` callback
-message so returned final state is in order when used with [`parse_stream/4`](#parse_stream-4) and [`parse_stream/5`](#parse_stream-5).
+The callback function (see [`callback_fun()`](#type-callback_fun)) reverses rows as
+reaction to`{eof, _}` callback message so returned final state is in
+order when used with [`parse_stream/4`](#parse_stream-4) and [`parse_stream/5`](#parse_stream-5).
 
 Returned callback is equivalent to
 
