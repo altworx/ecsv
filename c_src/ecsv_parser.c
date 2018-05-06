@@ -67,7 +67,10 @@ NIF(parser_init)
         }
     }
 
-    unless (enif_is_empty_list(env, list)) return enif_make_badarg(env);
+    unless (enif_is_empty_list(env, list)) {
+        T_STOP;
+        return enif_make_badarg(env);
+    };
 
     unless ((parser = enif_alloc_resource(ecsv_parser_type, sizeof(*parser)))) {
         term = enif_raise_exception(env, atoms.insufficient_memory);
